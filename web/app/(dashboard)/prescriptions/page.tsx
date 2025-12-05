@@ -1,79 +1,237 @@
-"use client"
+'use client';
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
-import { Search, Plus, Eye, FileText, Calendar, User } from "lucide-react"
-
-const mockPrescriptions = [
-  {
-    id: "RX001",
-    patientId: "P001",
-    patientName: "John Smith",
-    doctorName: "Dr. Sarah Williams",
-    date: "2024-11-18",
-    medications: ["Amoxicillin 500mg", "Paracetamol 500mg"],
-    diagnosis: "Upper Respiratory Infection",
-    status: "Active"
-  },
-  {
-    id: "RX002",
-    patientId: "P002",
-    patientName: "Sarah Johnson",
-    doctorName: "Dr. Michael Chen",
-    date: "2024-11-18",
-    medications: ["Ibuprofen 400mg"],
-    diagnosis: "Headache",
-    status: "Active"
-  },
-  {
-    id: "RX003",
-    patientId: "P003",
-    patientName: "Michael Brown",
-    doctorName: "Dr. Sarah Williams",
-    date: "2024-11-17",
-    medications: ["Metformin 500mg", "Lisinopril 10mg"],
-    diagnosis: "Diabetes Management",
-    status: "Active"
-  },
-  {
-    id: "RX004",
-    patientId: "P004",
-    patientName: "Emily Davis",
-    doctorName: "Dr. James Anderson",
-    date: "2024-11-16",
-    medications: ["Cetirizine 10mg"],
-    diagnosis: "Allergic Rhinitis",
-    status: "Active"
-  },
-  {
-    id: "RX005",
-    patientId: "P005",
-    patientName: "David Wilson",
-    doctorName: "Dr. Michael Chen",
-    date: "2024-11-10",
-    medications: ["Omeprazole 20mg"],
-    diagnosis: "Acid Reflux",
-    status: "Completed"
-  },
-]
+import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Search, Plus, Eye, FileText, Calendar, User } from 'lucide-react';
+import { PrescriptionService } from '@/lib/services/prescription.service';
+import { PatientService } from '@/lib/services/patient.service';
+import { InventoryService } from '@/lib/services/inventory.service';
+import { PDFService } from '@/lib/services/pdf.service';
+import { useAuth } from '@/lib/hooks/use-auth';
+import { Prescription, Patient, Medication, Medicine } from '@/lib/types';
 
 export default function PrescriptionsPage() {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [isAddPrescriptionOpen, setIsAddPrescriptionOpen] = useState(false)
+  const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [medicines, setMedicines] = useState<Medicine[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isAddPrescriptionOpen, setIsAddPrescriptionOpen] = useState(false);
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [selectedPatientId, setSelectedPatientId] = useState('');
+  const [formData, setFormData] = useState({
+    diagnosis: '',
+    instructions: '',
+  });
+  const [selectedMedications, setSelectedMedications] = useState<Medication[]>([]);
+  const [newMedication, setNewMedication] = useState({
+    medicineId: '',
+    medicineName: '',
+    dosage: '',
+    frequency: '',
+    duration: '',
+    quantity: 0,
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { user } = useAuth();
 
-  const filteredPrescriptions = mockPrescriptions.filter(prescription =>
-    prescription.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    prescription.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    prescription.doctorName.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  useEffect(() => {
+    // Load prescriptions, patients, and medicines
+    const loadAllData = async () => {
+      try {
+        const [prescData, patientsData, medicinesData] = await Promise.all([
+          new Promise<Prescription[]>((resolve) => {
+            PrescriptionService.getAllPrescriptions((data) => resolve(data));
+          }),
+          new Promise<Patient[]>((resolve) => {
+            PatientService.getAllPatients((data) => resolve(data));
+          }),
+          new Promise<Medicine[]>((resolve) => {
+            InventoryService.getAllMedicines((data) => resolve(data));
+          })
+        ]);
+
+        setPrescriptions(prescData);
+        setPatients(patientsData);
+        setMedicines(medicinesData);
+      } catch (error) {
+        console.error('Error loading data:', error);
+        toast.error('Failed to load data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadAllData();
+  }, []);
+
+  const filteredPrescriptions = prescriptions.filter(prescription => {
+    const matchesSearch =
+      prescription.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      prescription.prescriptionId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      prescription.doctorName.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesStatus = filterStatus === 'all' ||
+      (filterStatus === 'active' && prescription.status === 'Active') ||
+      (filterStatus === 'completed' && prescription.status === 'Completed');
+
+    return matchesSearch && matchesStatus;
+  });
+
+  const handleAddMedication = () => {
+    if (!newMedication.medicineId || !newMedication.medicineName) {
+      toast.error('Please select a medicine first');
+      return;
+    }
+
+    const medicine = medicines.find(m => m.medicineId === newMedication.medicineId);
+    if (!medicine) {
+      toast.error('Selected medicine not found');
+      return;
+    }
+
+    // Check if stock is sufficient
+    if (medicine.stock < newMedication.quantity) {
+      toast.error(`Insufficient stock for ${medicine.name}. Available: ${medicine.stock}, Requested: ${newMedication.quantity}`);
+      return;
+    }
+
+    const medication: Medication = {
+      medicineId: newMedication.medicineId,
+      medicineName: newMedication.medicineName,
+      dosage: newMedication.dosage,
+      frequency: newMedication.frequency,
+      duration: newMedication.duration,
+      quantity: newMedication.quantity,
+    };
+
+    setSelectedMedications([...selectedMedications, medication]);
+
+    // Reset the new medication form
+    setNewMedication({
+      medicineId: '',
+      medicineName: '',
+      dosage: '',
+      frequency: '',
+      duration: '',
+      quantity: 0,
+    });
+  };
+
+  const handleRemoveMedication = (index: number) => {
+    const updatedMedications = [...selectedMedications];
+    updatedMedications.splice(index, 1);
+    setSelectedMedications(updatedMedications);
+  };
+
+  const handleCreatePrescription = async () => {
+    if (!user) {
+      toast.error('You must be logged in to create a prescription');
+      return;
+    }
+
+    if (!selectedPatientId) {
+      toast.error('Please select a patient');
+      return;
+    }
+
+    if (selectedMedications.length === 0) {
+      toast.error('Please add at least one medication');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const patient = patients.find(p => p.id === selectedPatientId);
+      if (!patient) {
+        throw new Error('Selected patient not found');
+      }
+
+      // Validate stock availability for each medication
+      for (const med of selectedMedications) {
+        const medicine = medicines.find(m => m.medicineId === med.medicineId);
+        if (!medicine) {
+          throw new Error(`Medicine ${med.medicineName} not found`);
+        }
+        if (medicine.stock < med.quantity) {
+          throw new Error(`Insufficient stock for ${med.medicineName}. Available: ${medicine.stock}, Requested: ${med.quantity}`);
+        }
+      }
+
+      // Create the prescription
+      await PrescriptionService.createPrescription({
+        patientId: patient.id,
+        patientName: patient.fullName,
+        patientAge: patient.age,
+        patientGender: patient.gender,
+        doctorId: user.id,
+        doctorName: user.displayName,
+        date: new Date(),
+        diagnosis: formData.diagnosis,
+        medications: selectedMedications,
+        instructions: formData.instructions,
+        status: 'Active',
+      });
+
+      // Reset form
+      setIsAddPrescriptionOpen(false);
+      setSelectedPatientId('');
+      setFormData({
+        diagnosis: '',
+        instructions: '',
+      });
+      setSelectedMedications([]);
+
+      toast.success('Prescription created successfully');
+    } catch (error) {
+      console.error('Error creating prescription:', error);
+      toast.error(error.message || 'Failed to create prescription');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleViewPDF = (prescription: Prescription) => {
+    // Create a mock clinic settings object for PDF generation
+    const clinicSettings = {
+      name: "OpenClinic",
+      address: "123 Clinic Street, City, State 12345",
+      phone: "(123) 456-7890",
+      email: "info@openclinic.com",
+      licenseNo: "LIC-12345"
+    };
+
+    try {
+      // Generate PDF blob and open in new tab
+      const pdfBlob = PDFService.generatePrescriptionPDF(prescription, clinicSettings);
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+      window.open(pdfUrl, '_blank');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error('Failed to generate PDF');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-6 p-4">
+        <div>
+          <h1 className="mb-2">Prescription Management</h1>
+          <p className="text-muted-foreground">Loading prescriptions data...</p>
+        </div>
+        <div className="text-center py-10">Loading prescriptions...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -100,65 +258,155 @@ export default function PrescriptionsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="patient">Patient</Label>
-                  <Select>
+                  <Select value={selectedPatientId} onValueChange={setSelectedPatientId}>
                     <SelectTrigger id="patient">
                       <SelectValue placeholder="Select patient" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="p001">John Smith (P001)</SelectItem>
-                      <SelectItem value="p002">Sarah Johnson (P002)</SelectItem>
-                      <SelectItem value="p003">Michael Brown (P003)</SelectItem>
+                      {patients.map(patient => (
+                        <SelectItem key={patient.id} value={patient.id}>
+                          {patient.fullName} ({patient.patientId})
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="doctor">Prescribing Doctor</Label>
-                  <Select>
-                    <SelectTrigger id="doctor">
-                      <SelectValue placeholder="Select doctor" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="d001">Dr. Sarah Williams</SelectItem>
-                      <SelectItem value="d002">Dr. Michael Chen</SelectItem>
-                      <SelectItem value="d003">Dr. James Anderson</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Input
+                    id="doctor"
+                    value={user?.displayName || ''}
+                    readOnly
+                  />
                 </div>
               </div>
+
               <div className="space-y-2">
                 <Label htmlFor="diagnosis">Diagnosis</Label>
-                <Input id="diagnosis" placeholder="Patient diagnosis" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="medications">Medications</Label>
-                <Textarea
-                  id="medications"
-                  placeholder="List medications with dosage (e.g., Amoxicillin 500mg - 3 times daily for 7 days)"
-                  rows={4}
+                <Input
+                  id="diagnosis"
+                  placeholder="Patient diagnosis"
+                  value={formData.diagnosis}
+                  onChange={(e) => setFormData({...formData, diagnosis: e.target.value})}
                 />
               </div>
+
+              <div className="space-y-4">
+                <Label>Medications</Label>
+
+                {/* Add medication form */}
+                <div className="grid grid-cols-12 gap-2">
+                  <div className="col-span-4">
+                    <Select
+                      value={newMedication.medicineId}
+                      onValueChange={(value) => {
+                        const medicine = medicines.find(m => m.medicineId === value);
+                        if (medicine) {
+                          setNewMedication({
+                            ...newMedication,
+                            medicineId: value,
+                            medicineName: medicine.name,
+                          });
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select medicine" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {medicines.map(medicine => (
+                          <SelectItem key={medicine.id} value={medicine.medicineId}>
+                            {medicine.name} (Stock: {medicine.stock})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="col-span-3">
+                    <Input
+                      placeholder="Dosage"
+                      value={newMedication.dosage}
+                      onChange={(e) => setNewMedication({...newMedication, dosage: e.target.value})}
+                    />
+                  </div>
+
+                  <div className="col-span-2">
+                    <Input
+                      placeholder="Frequency"
+                      value={newMedication.frequency}
+                      onChange={(e) => setNewMedication({...newMedication, frequency: e.target.value})}
+                    />
+                  </div>
+
+                  <div className="col-span-2">
+                    <Input
+                      placeholder="Duration"
+                      value={newMedication.duration}
+                      onChange={(e) => setNewMedication({...newMedication, duration: e.target.value})}
+                    />
+                  </div>
+
+                  <div className="col-span-1">
+                    <Input
+                      type="number"
+                      placeholder="Qty"
+                      value={newMedication.quantity || ''}
+                      onChange={(e) => setNewMedication({...newMedication, quantity: Number(e.target.value)})}
+                    />
+                  </div>
+
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleAddMedication}
+                    className="col-span-1"
+                  >
+                    Add
+                  </Button>
+                </div>
+
+                {/* Selected medications list */}
+                {selectedMedications.length > 0 && (
+                  <div className="mt-2 border rounded-lg p-2 max-h-40 overflow-y-auto">
+                    {selectedMedications.map((med, index) => (
+                      <div key={index} className="flex justify-between items-center p-2 border-b">
+                        <div className="flex-1">
+                          <div className="font-medium">{med.medicineName}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {med.dosage} | {med.frequency} | {med.duration} | Qty: {med.quantity}
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleRemoveMedication(index)}
+                          className="text-red-500"
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <div className="space-y-2">
-                <Label htmlFor="instructions">Instructions</Label>
+                <Label htmlFor="instructions">Special Instructions</Label>
                 <Textarea
                   id="instructions"
                   placeholder="Special instructions for patient"
                   rows={3}
+                  value={formData.instructions}
+                  onChange={(e) => setFormData({...formData, instructions: e.target.value})}
                 />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="startDate">Start Date</Label>
-                  <Input id="startDate" type="date" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="duration">Duration (days)</Label>
-                  <Input id="duration" type="number" placeholder="7" />
-                </div>
               </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsAddPrescriptionOpen(false)}>Cancel</Button>
-              <Button onClick={() => setIsAddPrescriptionOpen(false)}>Create Prescription</Button>
+              <Button onClick={handleCreatePrescription} disabled={isSubmitting}>
+                {isSubmitting ? 'Creating...' : 'Create Prescription'}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -179,7 +427,7 @@ export default function PrescriptionsPage() {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <Select defaultValue="all">
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
@@ -187,7 +435,6 @@ export default function PrescriptionsPage() {
                 <SelectItem value="all">All Prescriptions</SelectItem>
                 <SelectItem value="active">Active</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="cancelled">Cancelled</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -209,7 +456,7 @@ export default function PrescriptionsPage() {
               <TableBody>
                 {filteredPrescriptions.map((prescription) => (
                   <TableRow key={prescription.id}>
-                    <TableCell className="font-mono">{prescription.id}</TableCell>
+                    <TableCell className="font-mono">{prescription.prescriptionId}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <User className="h-4 w-4 text-muted-foreground" />
@@ -223,7 +470,7 @@ export default function PrescriptionsPage() {
                     <TableCell>
                       <div className="flex items-center gap-1">
                         <Calendar className="h-4 w-4 text-muted-foreground" />
-                        {prescription.date}
+                        {prescription.date.toLocaleDateString()}
                       </div>
                     </TableCell>
                     <TableCell>{prescription.diagnosis}</TableCell>
@@ -231,7 +478,7 @@ export default function PrescriptionsPage() {
                       <div className="space-y-1">
                         {prescription.medications.map((med, index) => (
                           <Badge key={index} variant="outline" className="block w-fit">
-                            {med}
+                            {med.medicineName} - {med.dosage}
                           </Badge>
                         ))}
                       </div>
@@ -243,10 +490,11 @@ export default function PrescriptionsPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="sm">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleViewPDF(prescription)}
+                        >
                           <FileText className="h-4 w-4" />
                         </Button>
                       </div>
@@ -259,7 +507,7 @@ export default function PrescriptionsPage() {
 
           <div className="flex justify-between items-center">
             <p className="text-sm text-muted-foreground">
-              Showing {filteredPrescriptions.length} of {mockPrescriptions.length} prescriptions
+              Showing {filteredPrescriptions.length} of {prescriptions.length} prescriptions
             </p>
             <div className="flex gap-2">
               <Button variant="outline" size="sm">Previous</Button>

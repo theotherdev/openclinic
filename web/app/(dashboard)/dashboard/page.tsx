@@ -1,28 +1,65 @@
-"use client"
+'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
-import { Users, FileText, Package, AlertTriangle, TrendingUp, Calendar } from "lucide-react"
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts"
-
-const patientData = [
-  { day: "Mon", patients: 24 },
-  { day: "Tue", patients: 32 },
-  { day: "Wed", patients: 28 },
-  { day: "Thu", patients: 35 },
-  { day: "Fri", patients: 30 },
-  { day: "Sat", patients: 18 },
-  { day: "Sun", patients: 12 },
-]
-
-const inventoryAlerts = [
-  { medicine: "Paracetamol 500mg", stock: 45, threshold: 100, severity: "medium" },
-  { medicine: "Amoxicillin 250mg", stock: 12, threshold: 50, severity: "high" },
-  { medicine: "Ibuprofen 400mg", stock: 8, threshold: 75, severity: "critical" },
-]
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Users, FileText, Package, AlertTriangle, TrendingUp, Calendar } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
+import { DashboardService } from '@/lib/services/dashboard.service';
+import { InventoryService } from '@/lib/services/inventory.service';
+import { useAuth } from '@/lib/hooks/use-auth';
 
 export default function DashboardPage() {
+  const [stats, setStats] = useState<any>(null);
+  const [alerts, setAlerts] = useState<any[]>([]);
+  const [weekData, setWeekData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const [dashStats, invAlerts, weekly] = await Promise.all([
+          DashboardService.getDashboardStats(),
+          InventoryService.getLowStockAlerts(),
+          DashboardService.getWeeklyPatientData(),
+        ]);
+        setStats(dashStats);
+        setAlerts(invAlerts);
+        setWeekData(weekly);
+      } catch (error) {
+        console.error('Error loading dashboard data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+
+    // Set up real-time listeners if needed
+    // const unsubscribe = DashboardService.onDashboardUpdate((updatedStats) => {
+    //   setStats(updatedStats);
+    // });
+
+    // return () => {
+    //   unsubscribe();
+    // };
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="space-y-6 p-4">
+        <div>
+          <h1 className="mb-2">Dashboard</h1>
+          <p className="text-muted-foreground">Loading dashboard data...</p>
+        </div>
+        <div className="text-center py-10">Loading...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -37,7 +74,7 @@ export default function DashboardPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl">24</div>
+            <div className="text-2xl">{stats?.todayPatients}</div>
             <p className="text-xs text-muted-foreground mt-1">
               <span className="text-green-600 flex items-center gap-1">
                 <TrendingUp className="h-3 w-3" />
@@ -53,7 +90,7 @@ export default function DashboardPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl">1,284</div>
+            <div className="text-2xl">{stats?.totalPatients}</div>
             <p className="text-xs text-muted-foreground mt-1">Active registered patients</p>
           </CardContent>
         </Card>
@@ -64,7 +101,7 @@ export default function DashboardPage() {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl">18</div>
+            <div className="text-2xl">{stats?.todayPrescriptions}</div>
             <p className="text-xs text-muted-foreground mt-1">Issued today</p>
           </CardContent>
         </Card>
@@ -75,7 +112,7 @@ export default function DashboardPage() {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl text-red-600">3</div>
+            <div className="text-2xl text-red-600">{stats?.lowStockItems}</div>
             <p className="text-xs text-muted-foreground mt-1">Require immediate attention</p>
           </CardContent>
         </Card>
@@ -86,27 +123,17 @@ export default function DashboardPage() {
           <CardTitle>Inventory Alerts</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {inventoryAlerts.length > 0 ? (
-            inventoryAlerts.map((alert, index) => (
-              <Alert key={index} className={
-                alert.severity === "critical" ? "border-red-500 bg-red-50" :
-                alert.severity === "high" ? "border-orange-500 bg-orange-50" :
-                "border-yellow-500 bg-yellow-50"
-              }>
-                <AlertTriangle className={`h-4 w-4 ${
-                  alert.severity === "critical" ? "text-red-600" :
-                  alert.severity === "high" ? "text-orange-600" :
-                  "text-yellow-600"
-                }`} />
+          {alerts.length > 0 ? (
+            alerts.map((alert, index) => (
+              <Alert key={index} className="border-red-500 bg-red-50">
+                <AlertTriangle className={`h-4 w-4 text-red-600`} />
                 <AlertTitle>Low Stock Alert</AlertTitle>
                 <AlertDescription className="flex items-center justify-between">
                   <span>
-                    {alert.medicine} - Only {alert.stock} units remaining (Threshold: {alert.threshold})
+                    {alert.medicineName} - Only {alert.currentStock} units remaining (Threshold: {alert.threshold})
                   </span>
-                  <Badge variant={
-                    alert.severity === "critical" ? "destructive" : "default"
-                  }>
-                    {alert.severity.toUpperCase()}
+                  <Badge variant="destructive">
+                    CRITICAL
                   </Badge>
                 </AlertDescription>
               </Alert>
@@ -124,12 +151,12 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={patientData}>
+              <BarChart data={weekData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="day" />
                 <YAxis />
                 <Tooltip />
-                <Bar dataKey="patients" fill="#3b82f6" />
+                <Bar dataKey="count" fill="#3b82f6" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -141,12 +168,12 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={patientData}>
+              <LineChart data={weekData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="day" />
                 <YAxis />
                 <Tooltip />
-                <Line type="monotone" dataKey="patients" stroke="#3b82f6" strokeWidth={2} />
+                <Line type="monotone" dataKey="count" stroke="#3b82f6" strokeWidth={2} />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>

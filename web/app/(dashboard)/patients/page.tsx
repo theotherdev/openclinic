@@ -1,36 +1,171 @@
-"use client"
+'use client';
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Plus, Edit, Trash2, Eye, Phone, Mail } from "lucide-react"
-
-const mockPatients = [
-  { id: "P001", name: "John Smith", age: 45, gender: "Male", phone: "+1-555-0101", email: "john.smith@email.com", lastVisit: "2024-11-15", status: "Active" },
-  { id: "P002", name: "Sarah Johnson", age: 32, gender: "Female", phone: "+1-555-0102", email: "sarah.j@email.com", lastVisit: "2024-11-18", status: "Active" },
-  { id: "P003", name: "Michael Brown", age: 58, gender: "Male", phone: "+1-555-0103", email: "m.brown@email.com", lastVisit: "2024-11-10", status: "Active" },
-  { id: "P004", name: "Emily Davis", age: 28, gender: "Female", phone: "+1-555-0104", email: "emily.d@email.com", lastVisit: "2024-11-12", status: "Active" },
-  { id: "P005", name: "David Wilson", age: 41, gender: "Male", phone: "+1-555-0105", email: "david.w@email.com", lastVisit: "2024-11-08", status: "Inactive" },
-  { id: "P006", name: "Lisa Anderson", age: 35, gender: "Female", phone: "+1-555-0106", email: "lisa.a@email.com", lastVisit: "2024-11-17", status: "Active" },
-  { id: "P007", name: "James Taylor", age: 52, gender: "Male", phone: "+1-555-0107", email: "james.t@email.com", lastVisit: "2024-11-14", status: "Active" },
-  { id: "P008", name: "Jessica Martinez", age: 29, gender: "Female", phone: "+1-555-0108", email: "jessica.m@email.com", lastVisit: "2024-11-16", status: "Active" },
-]
+import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Search, Plus, Edit, Trash2, Eye, Phone, Mail } from 'lucide-react';
+import { PatientService } from '@/lib/services/patient.service';
+import { useAuth } from '@/lib/hooks/use-auth';
+import { Patient } from '@/lib/types';
 
 export default function PatientsPage() {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [isAddPatientOpen, setIsAddPatientOpen] = useState(false)
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isAddPatientOpen, setIsAddPatientOpen] = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    age: 0,
+    gender: '',
+    phone: '',
+    email: '',
+    address: '',
+    medicalHistory: '',
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { user } = useAuth();
 
-  const filteredPatients = mockPatients.filter(patient =>
-    patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    patient.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    patient.phone.includes(searchTerm)
-  )
+  useEffect(() => {
+    // Listen for real-time patient updates
+    const unsubscribe = PatientService.getAllPatients((patients) => {
+      setPatients(patients);
+      setLoading(false);
+    });
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
+
+  const filteredPatients = patients.filter(patient => {
+    const matchesSearch =
+      patient.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      patient.patientId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      patient.phone.includes(searchTerm);
+
+    const matchesStatus = filterStatus === 'all' ||
+      (filterStatus === 'active' && patient.status === 'Active') ||
+      (filterStatus === 'inactive' && patient.status === 'Inactive');
+
+    return matchesSearch && matchesStatus;
+  });
+
+  const handleSavePatient = async () => {
+    if (!user) {
+      toast.error('You must be logged in to save a patient');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const patientId = await PatientService.generatePatientId();
+      await PatientService.createPatient({
+        ...formData,
+        patientId,
+        fullName: `${formData.firstName} ${formData.lastName}`,
+        allergies: [],
+        status: 'Active',
+      }, user.id);
+
+      setIsAddPatientOpen(false);
+      setFormData({
+        firstName: '',
+        lastName: '',
+        age: 0,
+        gender: '',
+        phone: '',
+        email: '',
+        address: '',
+        medicalHistory: '',
+      });
+      toast.success('Patient added successfully');
+    } catch (error) {
+      console.error('Error adding patient:', error);
+      toast.error('Failed to add patient');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleEditPatient = async () => {
+    if (!selectedPatient?.id) return;
+
+    setIsSubmitting(true);
+    try {
+      await PatientService.updatePatient(selectedPatient.id, {
+        ...formData,
+        fullName: `${formData.firstName} ${formData.lastName}`,
+      });
+      setIsEditOpen(false);
+      setSelectedPatient(null);
+      setFormData({
+        firstName: '',
+        lastName: '',
+        age: 0,
+        gender: '',
+        phone: '',
+        email: '',
+        address: '',
+        medicalHistory: '',
+      });
+      toast.success('Patient updated successfully');
+    } catch (error) {
+      console.error('Error updating patient:', error);
+      toast.error('Failed to update patient');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleEdit = (patient: Patient) => {
+    setSelectedPatient(patient);
+    setFormData({
+      firstName: patient.firstName,
+      lastName: patient.lastName,
+      age: patient.age,
+      gender: patient.gender,
+      phone: patient.phone,
+      email: patient.email,
+      address: patient.address || '',
+      medicalHistory: patient.medicalHistory || '',
+    });
+    setIsEditOpen(true);
+  };
+
+  const handleDelete = async (patientId: string) => {
+    if (!confirm('Are you sure you want to delete this patient?')) return;
+
+    try {
+      await PatientService.deletePatient(patientId);
+      toast.success('Patient deleted successfully');
+    } catch (error) {
+      console.error('Error deleting patient:', error);
+      toast.error('Failed to delete patient');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-6 p-4">
+        <div>
+          <h1 className="mb-2">Patient Management</h1>
+          <p className="text-muted-foreground">Loading patient records...</p>
+        </div>
+        <div className="text-center py-10">Loading patients...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -56,49 +191,88 @@ export default function PatientsPage() {
             <div className="grid grid-cols-2 gap-4 py-4">
               <div className="space-y-2">
                 <Label htmlFor="firstName">First Name</Label>
-                <Input id="firstName" placeholder="John" />
+                <Input
+                  id="firstName"
+                  placeholder="John"
+                  value={formData.firstName}
+                  onChange={(e) => setFormData({...formData, firstName: e.target.value})}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="lastName">Last Name</Label>
-                <Input id="lastName" placeholder="Doe" />
+                <Input
+                  id="lastName"
+                  placeholder="Doe"
+                  value={formData.lastName}
+                  onChange={(e) => setFormData({...formData, lastName: e.target.value})}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="age">Age</Label>
-                <Input id="age" type="number" placeholder="30" />
+                <Input
+                  id="age"
+                  type="number"
+                  placeholder="30"
+                  value={formData.age || ''}
+                  onChange={(e) => setFormData({...formData, age: Number(e.target.value)})}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="gender">Gender</Label>
-                <Select>
+                <Select value={formData.gender} onValueChange={(value) => setFormData({...formData, gender: value})}>
                   <SelectTrigger id="gender">
                     <SelectValue placeholder="Select gender" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="male">Male</SelectItem>
-                    <SelectItem value="female">Female</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
+                    <SelectItem value="Male">Male</SelectItem>
+                    <SelectItem value="Female">Female</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone Number</Label>
-                <Input id="phone" placeholder="+1-555-0123" />
+                <Input
+                  id="phone"
+                  placeholder="+1-555-0123"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" placeholder="patient@email.com" />
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="patient@email.com"
+                  value={formData.email}
+                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                />
               </div>
               <div className="space-y-2 col-span-2">
                 <Label htmlFor="address">Address</Label>
-                <Input id="address" placeholder="123 Main St, City, State ZIP" />
+                <Input
+                  id="address"
+                  placeholder="123 Main St, City, State ZIP"
+                  value={formData.address}
+                  onChange={(e) => setFormData({...formData, address: e.target.value})}
+                />
               </div>
               <div className="space-y-2 col-span-2">
                 <Label htmlFor="medicalHistory">Medical History</Label>
-                <Input id="medicalHistory" placeholder="Known conditions, allergies, etc." />
+                <Input
+                  id="medicalHistory"
+                  placeholder="Known conditions, allergies, etc."
+                  value={formData.medicalHistory}
+                  onChange={(e) => setFormData({...formData, medicalHistory: e.target.value})}
+                />
               </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsAddPatientOpen(false)}>Cancel</Button>
-              <Button onClick={() => setIsAddPatientOpen(false)}>Save Patient</Button>
+              <Button onClick={handleSavePatient} disabled={isSubmitting}>
+                {isSubmitting ? 'Saving...' : 'Save Patient'}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -119,7 +293,7 @@ export default function PatientsPage() {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <Select defaultValue="all">
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
@@ -148,8 +322,8 @@ export default function PatientsPage() {
               <TableBody>
                 {filteredPatients.map((patient) => (
                   <TableRow key={patient.id}>
-                    <TableCell>{patient.id}</TableCell>
-                    <TableCell>{patient.name}</TableCell>
+                    <TableCell>{patient.patientId}</TableCell>
+                    <TableCell>{patient.fullName}</TableCell>
                     <TableCell>{patient.age}</TableCell>
                     <TableCell>{patient.gender}</TableCell>
                     <TableCell>
@@ -164,7 +338,7 @@ export default function PatientsPage() {
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>{patient.lastVisit}</TableCell>
+                    <TableCell>{patient.createdAt.toLocaleDateString()}</TableCell>
                     <TableCell>
                       <Badge variant={patient.status === "Active" ? "default" : "secondary"}>
                         {patient.status}
@@ -175,10 +349,18 @@ export default function PatientsPage() {
                         <Button variant="ghost" size="sm">
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="sm">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEdit(patient)}
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="sm">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDelete(patient.id)}
+                        >
                           <Trash2 className="h-4 w-4 text-red-500" />
                         </Button>
                       </div>
@@ -191,7 +373,7 @@ export default function PatientsPage() {
 
           <div className="flex justify-between items-center">
             <p className="text-sm text-muted-foreground">
-              Showing {filteredPatients.length} of {mockPatients.length} patients
+              Showing {filteredPatients.length} of {patients.length} patients
             </p>
             <div className="flex gap-2">
               <Button variant="outline" size="sm">Previous</Button>
@@ -200,6 +382,104 @@ export default function PatientsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Edit Patient Dialog */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Patient</DialogTitle>
+            <DialogDescription>
+              Update patient information
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="editFirstName">First Name</Label>
+              <Input
+                id="editFirstName"
+                placeholder="John"
+                value={formData.firstName}
+                onChange={(e) => setFormData({...formData, firstName: e.target.value})}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="editLastName">Last Name</Label>
+              <Input
+                id="editLastName"
+                placeholder="Doe"
+                value={formData.lastName}
+                onChange={(e) => setFormData({...formData, lastName: e.target.value})}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="editAge">Age</Label>
+              <Input
+                id="editAge"
+                type="number"
+                placeholder="30"
+                value={formData.age || ''}
+                onChange={(e) => setFormData({...formData, age: Number(e.target.value)})}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="editGender">Gender</Label>
+              <Select value={formData.gender} onValueChange={(value) => setFormData({...formData, gender: value})}>
+                <SelectTrigger id="editGender">
+                  <SelectValue placeholder="Select gender" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Male">Male</SelectItem>
+                  <SelectItem value="Female">Female</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="editPhone">Phone Number</Label>
+              <Input
+                id="editPhone"
+                placeholder="+1-555-0123"
+                value={formData.phone}
+                onChange={(e) => setFormData({...formData, phone: e.target.value})}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="editEmail">Email</Label>
+              <Input
+                id="editEmail"
+                type="email"
+                placeholder="patient@email.com"
+                value={formData.email}
+                onChange={(e) => setFormData({...formData, email: e.target.value})}
+              />
+            </div>
+            <div className="space-y-2 col-span-2">
+              <Label htmlFor="editAddress">Address</Label>
+              <Input
+                id="editAddress"
+                placeholder="123 Main St, City, State ZIP"
+                value={formData.address}
+                onChange={(e) => setFormData({...formData, address: e.target.value})}
+              />
+            </div>
+            <div className="space-y-2 col-span-2">
+              <Label htmlFor="editMedicalHistory">Medical History</Label>
+              <Input
+                id="editMedicalHistory"
+                placeholder="Known conditions, allergies, etc."
+                value={formData.medicalHistory}
+                onChange={(e) => setFormData({...formData, medicalHistory: e.target.value})}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>
+            <Button onClick={handleEditPatient} disabled={isSubmitting}>
+              {isSubmitting ? 'Saving...' : 'Update Patient'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

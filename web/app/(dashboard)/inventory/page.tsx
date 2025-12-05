@@ -1,124 +1,154 @@
-"use client"
+'use client';
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Progress } from "@/components/ui/progress"
-import { Search, Plus, Edit, Package, AlertTriangle, TrendingDown } from "lucide-react"
-
-const mockInventory = [
-  {
-    id: "MED001",
-    name: "Paracetamol 500mg",
-    category: "Pain Relief",
-    manufacturer: "PharmaCorp",
-    stock: 450,
-    threshold: 100,
-    unit: "Tablets",
-    expiryDate: "2025-08-15",
-    price: 0.15,
-    batchNo: "BATCH2024A"
-  },
-  {
-    id: "MED002",
-    name: "Amoxicillin 250mg",
-    category: "Antibiotics",
-    manufacturer: "MediLabs",
-    stock: 125,
-    threshold: 50,
-    unit: "Capsules",
-    expiryDate: "2025-06-20",
-    price: 0.45,
-    batchNo: "BATCH2024B"
-  },
-  {
-    id: "MED003",
-    name: "Ibuprofen 400mg",
-    category: "Pain Relief",
-    manufacturer: "PharmaCorp",
-    stock: 280,
-    threshold: 75,
-    unit: "Tablets",
-    expiryDate: "2025-12-10",
-    price: 0.20,
-    batchNo: "BATCH2024C"
-  },
-  {
-    id: "MED004",
-    name: "Metformin 500mg",
-    category: "Diabetes",
-    manufacturer: "HealthPharma",
-    stock: 35,
-    threshold: 100,
-    unit: "Tablets",
-    expiryDate: "2025-04-30",
-    price: 0.30,
-    batchNo: "BATCH2024D"
-  },
-  {
-    id: "MED005",
-    name: "Lisinopril 10mg",
-    category: "Cardiovascular",
-    manufacturer: "CardioMed",
-    stock: 180,
-    threshold: 60,
-    unit: "Tablets",
-    expiryDate: "2025-09-25",
-    price: 0.35,
-    batchNo: "BATCH2024E"
-  },
-  {
-    id: "MED006",
-    name: "Omeprazole 20mg",
-    category: "Gastrointestinal",
-    manufacturer: "DigestPharma",
-    stock: 15,
-    threshold: 80,
-    unit: "Capsules",
-    expiryDate: "2025-03-15",
-    price: 0.40,
-    batchNo: "BATCH2024F"
-  },
-  {
-    id: "MED007",
-    name: "Cetirizine 10mg",
-    category: "Antihistamines",
-    manufacturer: "AllergyMed",
-    stock: 320,
-    threshold: 100,
-    unit: "Tablets",
-    expiryDate: "2025-11-30",
-    price: 0.25,
-    batchNo: "BATCH2024G"
-  },
-]
+import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Progress } from '@/components/ui/progress';
+import { Search, Plus, Edit, Package, AlertTriangle, TrendingDown } from 'lucide-react';
+import { InventoryService } from '@/lib/services/inventory.service';
+import { useAuth } from '@/lib/hooks/use-auth';
+import { Medicine } from '@/lib/types';
 
 export default function InventoryPage() {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [isAddMedicineOpen, setIsAddMedicineOpen] = useState(false)
+  const [medicines, setMedicines] = useState<Medicine[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isAddMedicineOpen, setIsAddMedicineOpen] = useState(false);
+  const [selectedMedicine, setSelectedMedicine] = useState<Medicine | null>(null);
+  const [isRestockDialogOpen, setIsRestockDialogOpen] = useState(false);
+  const [restockAmount, setRestockAmount] = useState(0);
+  const [filterCategory, setFilterCategory] = useState('all');
+  const [formData, setFormData] = useState({
+    name: '',
+    category: '',
+    manufacturer: '',
+    stock: 0,
+    threshold: 0,
+    unit: '',
+    expiryDate: '',
+    price: 0,
+    batchNo: '',
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { user } = useAuth();
 
-  const filteredInventory = mockInventory.filter(item =>
-    item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.category.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  useEffect(() => {
+    // Listen for real-time medicine updates
+    const unsubscribe = InventoryService.getAllMedicines((medicines) => {
+      setMedicines(medicines);
+      setLoading(false);
+    });
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
+
+  const filteredMedicines = medicines.filter(item => {
+    const matchesSearch =
+      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.medicineId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.category.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesCategory = filterCategory === 'all' || item.category === filterCategory;
+
+    return matchesSearch && matchesCategory;
+  });
 
   const getStockStatus = (stock: number, threshold: number) => {
-    const percentage = (stock / threshold) * 100
-    if (percentage <= 25) return { status: "critical", color: "text-red-600", variant: "destructive" as const }
-    if (percentage <= 50) return { status: "low", color: "text-orange-600", variant: "default" as const }
-    if (percentage <= 100) return { status: "medium", color: "text-yellow-600", variant: "secondary" as const }
-    return { status: "good", color: "text-green-600", variant: "outline" as const }
-  }
+    const percentage = (stock / threshold) * 100;
+    if (percentage <= 25) return { status: "critical", color: "text-red-600", variant: "destructive" as const };
+    if (percentage <= 50) return { status: "low", color: "text-orange-600", variant: "default" as const };
+    if (percentage <= 100) return { status: "medium", color: "text-yellow-600", variant: "secondary" as const };
+    return { status: "good", color: "text-green-600", variant: "outline" as const };
+  };
 
-  const lowStockCount = mockInventory.filter(item => item.stock < item.threshold).length
-  const criticalStockCount = mockInventory.filter(item => (item.stock / item.threshold) * 100 <= 25).length
+  const lowStockCount = medicines.filter(item => item.stock < item.threshold).length;
+  const criticalStockCount = medicines.filter(item => (item.stock / item.threshold) * 100 <= 25).length;
+  const totalValue = medicines.reduce((sum, item) => sum + (item.stock * item.price), 0);
+
+  const handleAddMedicine = async () => {
+    if (!user) {
+      toast.error('You must be logged in to add medicine');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const medicineId = await InventoryService.generateMedicineId();
+      await InventoryService.createMedicine({
+        ...formData,
+        medicineId,
+        expiryDate: new Date(formData.expiryDate),
+        stock: Number(formData.stock),
+        threshold: Number(formData.threshold),
+        price: Number(formData.price),
+      });
+
+      setIsAddMedicineOpen(false);
+      setFormData({
+        name: '',
+        category: '',
+        manufacturer: '',
+        stock: 0,
+        threshold: 0,
+        unit: '',
+        expiryDate: '',
+        price: 0,
+        batchNo: '',
+      });
+      toast.success('Medicine added successfully');
+    } catch (error) {
+      console.error('Error adding medicine:', error);
+      toast.error('Failed to add medicine');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleRestock = async () => {
+    if (!selectedMedicine || !user) return;
+
+    setIsSubmitting(true);
+    try {
+      await InventoryService.restockMedicine(
+        selectedMedicine.id,
+        selectedMedicine.medicineId,
+        selectedMedicine.name,
+        restockAmount,
+        user.id,
+        user.displayName
+      );
+
+      setIsRestockDialogOpen(false);
+      setRestockAmount(0);
+      toast.success(`Stock increased by ${restockAmount}`);
+    } catch (error) {
+      console.error('Error restocking medicine:', error);
+      toast.error('Failed to restock medicine');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-6 p-4">
+        <div>
+          <h1 className="mb-2">Inventory Management</h1>
+          <p className="text-muted-foreground">Loading inventory data...</p>
+        </div>
+        <div className="text-center py-10">Loading medicines...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -144,65 +174,107 @@ export default function InventoryPage() {
             <div className="grid grid-cols-2 gap-4 py-4">
               <div className="space-y-2">
                 <Label htmlFor="medicineName">Medicine Name</Label>
-                <Input id="medicineName" placeholder="e.g., Paracetamol 500mg" />
+                <Input
+                  id="medicineName"
+                  placeholder="e.g., Paracetamol 500mg"
+                  value={formData.name}
+                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="category">Category</Label>
-                <Select>
+                <Select value={formData.category} onValueChange={(value) => setFormData({...formData, category: value})}>
                   <SelectTrigger id="category">
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="painRelief">Pain Relief</SelectItem>
-                    <SelectItem value="antibiotics">Antibiotics</SelectItem>
-                    <SelectItem value="diabetes">Diabetes</SelectItem>
-                    <SelectItem value="cardiovascular">Cardiovascular</SelectItem>
-                    <SelectItem value="gastrointestinal">Gastrointestinal</SelectItem>
+                    <SelectItem value="Pain Relief">Pain Relief</SelectItem>
+                    <SelectItem value="Antibiotics">Antibiotics</SelectItem>
+                    <SelectItem value="Diabetes">Diabetes</SelectItem>
+                    <SelectItem value="Cardiovascular">Cardiovascular</SelectItem>
+                    <SelectItem value="Gastrointestinal">Gastrointestinal</SelectItem>
+                    <SelectItem value="Antihistamines">Antihistamines</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="manufacturer">Manufacturer</Label>
-                <Input id="manufacturer" placeholder="Manufacturer name" />
+                <Input
+                  id="manufacturer"
+                  placeholder="Manufacturer name"
+                  value={formData.manufacturer}
+                  onChange={(e) => setFormData({...formData, manufacturer: e.target.value})}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="batchNo">Batch Number</Label>
-                <Input id="batchNo" placeholder="BATCH2024X" />
+                <Input
+                  id="batchNo"
+                  placeholder="BATCH2024X"
+                  value={formData.batchNo}
+                  onChange={(e) => setFormData({...formData, batchNo: e.target.value})}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="quantity">Initial Stock</Label>
-                <Input id="quantity" type="number" placeholder="100" />
+                <Input
+                  id="quantity"
+                  type="number"
+                  placeholder="100"
+                  value={formData.stock || ''}
+                  onChange={(e) => setFormData({...formData, stock: Number(e.target.value)})}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="threshold">Minimum Threshold</Label>
-                <Input id="threshold" type="number" placeholder="50" />
+                <Input
+                  id="threshold"
+                  type="number"
+                  placeholder="50"
+                  value={formData.threshold || ''}
+                  onChange={(e) => setFormData({...formData, threshold: Number(e.target.value)})}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="unit">Unit</Label>
-                <Select>
+                <Select value={formData.unit} onValueChange={(value) => setFormData({...formData, unit: value})}>
                   <SelectTrigger id="unit">
                     <SelectValue placeholder="Select unit" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="tablets">Tablets</SelectItem>
-                    <SelectItem value="capsules">Capsules</SelectItem>
-                    <SelectItem value="bottles">Bottles</SelectItem>
-                    <SelectItem value="vials">Vials</SelectItem>
+                    <SelectItem value="Tablets">Tablets</SelectItem>
+                    <SelectItem value="Capsules">Capsules</SelectItem>
+                    <SelectItem value="Bottles">Bottles</SelectItem>
+                    <SelectItem value="Vials">Vials</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="price">Unit Price ($)</Label>
-                <Input id="price" type="number" step="0.01" placeholder="0.00" />
+                <Input
+                  id="price"
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={formData.price || ''}
+                  onChange={(e) => setFormData({...formData, price: Number(e.target.value)})}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="expiryDate">Expiry Date</Label>
-                <Input id="expiryDate" type="date" />
+                <Input
+                  id="expiryDate"
+                  type="date"
+                  value={formData.expiryDate}
+                  onChange={(e) => setFormData({...formData, expiryDate: e.target.value})}
+                />
               </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsAddMedicineOpen(false)}>Cancel</Button>
-              <Button onClick={() => setIsAddMedicineOpen(false)}>Add to Inventory</Button>
+              <Button onClick={handleAddMedicine} disabled={isSubmitting}>
+                {isSubmitting ? 'Adding...' : 'Add to Inventory'}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -215,7 +287,7 @@ export default function InventoryPage() {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl">{mockInventory.length}</div>
+            <div className="text-2xl">{medicines.length}</div>
             <p className="text-xs text-muted-foreground mt-1">Unique medicines in stock</p>
           </CardContent>
         </Card>
@@ -249,7 +321,7 @@ export default function InventoryPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl">
-              ${mockInventory.reduce((sum, item) => sum + (item.stock * item.price), 0).toFixed(2)}
+              ${totalValue.toFixed(2)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">Current inventory value</p>
           </CardContent>
@@ -271,16 +343,16 @@ export default function InventoryPage() {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <Select defaultValue="all">
+            <Select value={filterCategory} onValueChange={setFilterCategory}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Filter by category" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
-                <SelectItem value="painRelief">Pain Relief</SelectItem>
-                <SelectItem value="antibiotics">Antibiotics</SelectItem>
-                <SelectItem value="diabetes">Diabetes</SelectItem>
-                <SelectItem value="cardiovascular">Cardiovascular</SelectItem>
+                <SelectItem value="Pain Relief">Pain Relief</SelectItem>
+                <SelectItem value="Antibiotics">Antibiotics</SelectItem>
+                <SelectItem value="Diabetes">Diabetes</SelectItem>
+                <SelectItem value="Cardiovascular">Cardiovascular</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -301,13 +373,13 @@ export default function InventoryPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredInventory.map((item) => {
-                  const stockStatus = getStockStatus(item.stock, item.threshold)
-                  const stockPercentage = Math.min((item.stock / item.threshold) * 100, 100)
+                {filteredMedicines.map((item) => {
+                  const stockStatus = getStockStatus(item.stock, item.threshold);
+                  const stockPercentage = Math.min((item.stock / item.threshold) * 100, 100);
 
                   return (
                     <TableRow key={item.id}>
-                      <TableCell className="font-mono">{item.id}</TableCell>
+                      <TableCell className="font-mono">{item.medicineId}</TableCell>
                       <TableCell>{item.name}</TableCell>
                       <TableCell>
                         <Badge variant="outline">{item.category}</Badge>
@@ -330,14 +402,21 @@ export default function InventoryPage() {
                         </div>
                       </TableCell>
                       <TableCell className="font-mono text-sm">{item.batchNo}</TableCell>
-                      <TableCell>{item.expiryDate}</TableCell>
+                      <TableCell>{item.expiryDate.toLocaleDateString()}</TableCell>
                       <TableCell>${item.price.toFixed(2)}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Button variant="ghost" size="sm">
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button variant="outline" size="sm">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedMedicine(item);
+                              setIsRestockDialogOpen(true);
+                            }}
+                          >
                             Restock
                           </Button>
                         </div>
@@ -351,7 +430,7 @@ export default function InventoryPage() {
 
           <div className="flex justify-between items-center">
             <p className="text-sm text-muted-foreground">
-              Showing {filteredInventory.length} of {mockInventory.length} items
+              Showing {filteredMedicines.length} of {medicines.length} items
             </p>
             <div className="flex gap-2">
               <Button variant="outline" size="sm">Previous</Button>
@@ -360,6 +439,36 @@ export default function InventoryPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Restock Dialog */}
+      <Dialog open={isRestockDialogOpen} onOpenChange={setIsRestockDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Restock Medicine</DialogTitle>
+            <DialogDescription>
+              Add stock for {selectedMedicine?.name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="restockAmount">Quantity to Add</Label>
+              <Input
+                id="restockAmount"
+                type="number"
+                placeholder="Enter quantity"
+                value={restockAmount || ''}
+                onChange={(e) => setRestockAmount(Number(e.target.value))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsRestockDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleRestock} disabled={isSubmitting || restockAmount <= 0}>
+              {isSubmitting ? 'Restocking...' : 'Restock'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
