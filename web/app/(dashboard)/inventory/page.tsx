@@ -403,7 +403,7 @@ export default function InventoryPage() {
                         </div>
                       </TableCell>
                       <TableCell className="font-mono text-sm">{item.batchNo}</TableCell>
-                      <TableCell>{item.expiryDate.toLocaleDateString()}</TableCell>
+                      <TableCell>{item.expiryDate.toDate().toLocaleDateString()}</TableCell>
                       <TableCell>${item.price.toFixed(2)}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
