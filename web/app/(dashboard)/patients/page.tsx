@@ -338,7 +338,7 @@ export default function PatientsPage() {
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>{patient.createdAt.toDate().toLocaleDateString()}</TableCell>
+                    <TableCell>{patient.createdAt.toLocaleDateString()}</TableCell>
                     <TableCell>
                       <Badge variant={patient.status === "Active" ? "default" : "secondary"}>
                         {patient.status}
