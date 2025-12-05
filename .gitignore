@@ -41,3 +41,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Root directory files to ignore
+CLAUDE.md
+Qwen.md
+fancy-beaming-treasure.md
+*.pdf
+*.jpeg
+*.jpg
+*.png
