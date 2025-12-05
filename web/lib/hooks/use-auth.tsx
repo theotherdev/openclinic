@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect, useContext, createContext, ReactNode } from 'react';
 import { User as FirebaseUser } from 'firebase/auth';
 import { getDoc, doc } from 'firebase/firestore';

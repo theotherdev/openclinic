@@ -105,22 +105,28 @@ export class PatientService {
 
   // Generate unique patient ID (P001, P002, etc.)
   static async generatePatientId(): Promise<string> {
-    // Get the highest patient ID currently in the system
-    const q = query(collection(db, this.collectionName), orderBy('patientId', 'desc'), orderBy('createdAt', 'desc'));
-    const snapshot = await getDocs(q);
-    
+    // Get all patients and find the highest ID
+    const snapshot = await getDocs(collection(db, this.collectionName));
+
     if (snapshot.empty) {
       return 'P001';
     }
-    
-    // Get the first document (highest patientId)
-    const lastPatient = snapshot.docs[0].data();
-    const lastId = lastPatient.patientId as string;
-    
-    // Extract the numeric part from the ID (e.g., from P005 get 5)
-    const lastNumber = parseInt(lastId.replace('P', ''), 10);
-    const nextId = lastNumber + 1;
-    
+
+    // Find the highest patient ID
+    let maxNumber = 0;
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      const patientId = data.patientId as string;
+      if (patientId && patientId.startsWith('P')) {
+        const number = parseInt(patientId.replace('P', ''), 10);
+        if (!isNaN(number) && number > maxNumber) {
+          maxNumber = number;
+        }
+      }
+    });
+
+    const nextId = maxNumber + 1;
+
     // Format the next ID with leading zeros (P001, P002, etc.)
     return `P${nextId.toString().padStart(3, '0')}`;
   }

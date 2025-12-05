@@ -1,0 +1,12 @@
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "storage": [
+    {
+      "bucket": "openclinic-project.firebasestorage.app",
+      "rules": "storage.rules"
+    }
+  ]
+}
