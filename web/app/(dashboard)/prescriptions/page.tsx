@@ -176,7 +176,7 @@ export default function PrescriptionsPage() {
         patientGender: patient.gender,
         doctorId: user.id,
         doctorName: user.displayName,
-        date: Timestamp.now(),
+        date: new Date(),
         diagnosis: formData.diagnosis,
         medications: selectedMedications,
         instructions: formData.instructions,

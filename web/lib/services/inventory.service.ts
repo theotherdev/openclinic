@@ -75,9 +75,10 @@ export class InventoryService {
   static async createMedicine(medicineData: Omit<Medicine, 'id' | 'createdAt'>): Promise<string> {
     const medicineRef = await addDoc(collection(db, this.medicineCollection), {
       ...medicineData,
+      expiryDate: Timestamp.fromDate(medicineData.expiryDate),
       createdAt: Timestamp.now(),
     });
-    
+
     return medicineRef.id;
   }
 

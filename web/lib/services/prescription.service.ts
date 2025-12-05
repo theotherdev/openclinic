@@ -107,6 +107,7 @@ export class PrescriptionService {
     const prescriptionRef = await addDoc(collection(db, this.collectionName), {
       ...prescriptionData,
       prescriptionId,
+      date: Timestamp.fromDate(prescriptionData.date),
       createdAt: Timestamp.now(),
     });
     

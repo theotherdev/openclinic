@@ -87,7 +87,7 @@ export default function InventoryPage() {
       await InventoryService.createMedicine({
         ...formData,
         medicineId,
-        expiryDate: Timestamp.fromDate(new Date(formData.expiryDate)),
+        expiryDate: new Date(formData.expiryDate),
         stock: Number(formData.stock),
         threshold: Number(formData.threshold),
         price: Number(formData.price),

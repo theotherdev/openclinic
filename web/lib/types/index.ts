@@ -25,8 +25,8 @@ export interface Patient {
   medicalHistory: string;
   allergies: string[];
   status: 'Active' | 'Inactive';
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 // Medication interface (for prescriptions)
@@ -49,13 +49,13 @@ export interface Prescription {
   patientGender: string;
   doctorId: string;
   doctorName: string;
-  date: Timestamp;
+  date: Date;
   diagnosis: string;
   medications: Medication[];
   instructions: string;
   status: 'Active' | 'Completed';
   pdfUrl?: string; // URL to the generated PDF
-  createdAt: Timestamp;
+  createdAt: Date;
 }
 
 // Medicine interface (for inventory)
@@ -69,9 +69,9 @@ export interface Medicine {
   stock: number;
   threshold: number; // Minimum stock threshold
   unit: string; // e.g., 'tablet', 'capsule', 'ml', etc.
-  expiryDate: Timestamp;
+  expiryDate: Date;
   price: number;
-  createdAt: Timestamp;
+  createdAt: Date;
 }
 
 // Inventory alert interface
