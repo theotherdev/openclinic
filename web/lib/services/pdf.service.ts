@@ -31,7 +31,7 @@ export class PDFService {
     doc.text(`Patient Name: ${prescription.patientName}`, 20, 75);
     doc.text(`Age: ${prescription.patientAge}`, 20, 80);
     doc.text(`Gender: ${prescription.patientGender}`, 20, 85);
-    doc.text(`Date: ${prescription.date.toDate().toLocaleDateString()}`, 140, 75);
+    doc.text(`Date: ${prescription.date.toLocaleDateString()}`, 140, 75);
     doc.text(`Prescription ID: ${prescription.prescriptionId}`, 140, 80);
     
     // Add doctor information
