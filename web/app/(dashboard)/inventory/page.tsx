@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
+import { Timestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -86,7 +87,7 @@ export default function InventoryPage() {
       await InventoryService.createMedicine({
         ...formData,
         medicineId,
-        expiryDate: new Date(formData.expiryDate),
+        expiryDate: Timestamp.fromDate(new Date(formData.expiryDate)),
         stock: Number(formData.stock),
         threshold: Number(formData.threshold),
         price: Number(formData.price),
