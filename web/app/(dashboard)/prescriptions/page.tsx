@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
+import { Timestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -175,7 +176,7 @@ export default function PrescriptionsPage() {
         patientGender: patient.gender,
         doctorId: user.id,
         doctorName: user.displayName,
-        date: new Date(),
+        date: Timestamp.now(),
         diagnosis: formData.diagnosis,
         medications: selectedMedications,
         instructions: formData.instructions,
@@ -194,7 +195,7 @@ export default function PrescriptionsPage() {
       toast.success('Prescription created successfully');
     } catch (error) {
       console.error('Error creating prescription:', error);
-      toast.error(error.message || 'Failed to create prescription');
+      toast.error(error instanceof Error ? error.message : 'Failed to create prescription');
     } finally {
       setIsSubmitting(false);
     }
@@ -470,7 +471,7 @@ export default function PrescriptionsPage() {
                     <TableCell>
                       <div className="flex items-center gap-1">
                         <Calendar className="h-4 w-4 text-muted-foreground" />
-                        {prescription.date.toLocaleDateString()}
+                        {prescription.date.toDate().toLocaleDateString()}
                       </div>
                     </TableCell>
                     <TableCell>{prescription.diagnosis}</TableCell>

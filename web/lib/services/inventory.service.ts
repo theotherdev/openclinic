@@ -173,8 +173,8 @@ export class InventoryService {
   static async getLowStockAlerts(): Promise<{medicineId: string, medicineName: string, currentStock: number, threshold: number}[]> {
     const q = query(collection(db, this.medicineCollection));
     const snapshot = await getDocs(q);
-    
-    const alerts = [];
+
+    const alerts: {medicineId: string, medicineName: string, currentStock: number, threshold: number}[] = [];
     snapshot.forEach((doc) => {
       const data = doc.data();
       if (data.stock < data.threshold) {
@@ -186,7 +186,7 @@ export class InventoryService {
         });
       }
     });
-    
+
     return alerts;
   }
 

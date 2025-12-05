@@ -31,7 +31,7 @@ export class PDFService {
     doc.text(`Patient Name: ${prescription.patientName}`, 20, 75);
     doc.text(`Age: ${prescription.patientAge}`, 20, 80);
     doc.text(`Gender: ${prescription.patientGender}`, 20, 85);
-    doc.text(`Date: ${prescription.date.toLocaleDateString()}`, 140, 75);
+    doc.text(`Date: ${prescription.date.toDate().toLocaleDateString()}`, 140, 75);
     doc.text(`Prescription ID: ${prescription.prescriptionId}`, 140, 80);
     
     // Add doctor information
@@ -62,7 +62,7 @@ export class PDFService {
     
     // Add instructions section
     if (prescription.instructions) {
-      const finalY = doc.lastAutoTable.finalY || 125;
+      const finalY = (doc as any).lastAutoTable?.finalY || 125;
       doc.text('INSTRUCTIONS:', 20, finalY + 10);
       doc.text(prescription.instructions, 20, finalY + 15);
     }
