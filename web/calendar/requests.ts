@@ -1,5 +1,5 @@
 import { AppointmentService } from '@/lib/services/appointment.service';
-import { PatientService } from '@/lib/services/patient.service';
+import { DoctorService } from '@/lib/services/doctor.service';
 import type { IEvent, IUser } from './interfaces';
 
 const eventColorMap: Record<number, any> = {
@@ -45,23 +45,17 @@ export const getEvents = async (): Promise<IEvent[]> => {
 
 export const getUsers = async (): Promise<IUser[]> => {
   try {
-    const patients = await new Promise<any[]>((resolve) => {
-      PatientService.getAllPatients((patients) => {
-        resolve(patients);
-      });
-      // Set a timeout to resolve empty if no data within 5 seconds
-      setTimeout(() => resolve([]), 5000);
-    });
+    const doctors = await DoctorService.getAllDoctorsAsync();
 
-    const users: IUser[] = patients.map((patient) => ({
-      id: patient.id,
-      name: patient.fullName,
+    const users: IUser[] = doctors.map((doctor) => ({
+      id: doctor.id,
+      name: doctor.displayName,
       picturePath: null,
     }));
 
     return users;
   } catch (error) {
-    console.error('Error fetching users:', error);
+    console.error('Error fetching doctors:', error);
     return [];
   }
 };
