@@ -113,3 +113,21 @@ export interface ClinicSettings {
   email: string;
   licenseNo: string;
 }
+
+// Appointment interface
+export interface Appointment {
+  id: string;
+  appointmentId: string; // Unique appointment ID (e.g., APT001)
+  patientId: string;
+  patientName: string;
+  doctorId: string;
+  doctorName: string;
+  startDate: Date;
+  endDate: Date;
+  title: string;
+  description: string;
+  status: 'Scheduled' | 'Completed' | 'Cancelled';
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}

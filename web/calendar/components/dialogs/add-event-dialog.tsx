@@ -1,12 +1,16 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { AlertTriangle } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { toast } from "sonner";
 
 import { useDisclosure } from "@/hooks/use-disclosure";
 import { useCalendar } from "@/calendar/contexts/calendar-context";
+import { useAuth } from "@/lib/hooks/use-auth";
+import { AppointmentService } from "@/lib/services/appointment.service";
+import { PatientService } from "@/lib/services/patient.service";
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -22,6 +26,7 @@ import { eventSchema } from "@/calendar/schemas";
 
 import type { TimeValue } from "react-aria-components";
 import type { TEventFormData } from "@/calendar/schemas";
+import type { Patient } from "@/lib/types";
 
 interface IProps {
   children: React.ReactNode;
@@ -30,9 +35,23 @@ interface IProps {
 }
 
 export function AddEventDialog({ children, startDate, startTime }: IProps) {
-  const { users } = useCalendar();
-
+  const { users, setLocalEvents, events } = useCalendar();
+  const { user } = useAuth();
   const { isOpen, onClose, onToggle } = useDisclosure();
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedPatientId, setSelectedPatientId] = useState("");
+
+  useEffect(() => {
+    const loadPatients = () => {
+      PatientService.getAllPatients((patientsData) => {
+        setPatients(patientsData);
+      });
+    };
+    if (isOpen) {
+      loadPatients();
+    }
+  }, [isOpen]);
 
   const form = useForm<TEventFormData>({
     resolver: zodResolver(eventSchema),
@@ -44,10 +63,66 @@ export function AddEventDialog({ children, startDate, startTime }: IProps) {
     },
   });
 
-  const onSubmit = (_values: TEventFormData) => {
-    // TO DO: Create use-add-event hook
-    onClose();
-    form.reset();
+  const onSubmit = async (values: TEventFormData) => {
+    if (!user || !selectedPatientId) {
+      toast.error("Please select a patient and ensure you're logged in");
+      return;
+    }
+
+    const selectedPatient = patients.find(p => p.id === selectedPatientId);
+    if (!selectedPatient) {
+      toast.error("Selected patient not found");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const startDateTime = new Date(values.startDate);
+      startDateTime.setHours(values.startTime.hour, values.startTime.minute, 0, 0);
+
+      const endDateTime = new Date(values.endDate);
+      endDateTime.setHours(values.endTime.hour, values.endTime.minute, 0, 0);
+
+      const appointmentId = await AppointmentService.generateAppointmentId();
+
+      await AppointmentService.createAppointment({
+        appointmentId,
+        patientId: selectedPatient.id,
+        patientName: selectedPatient.fullName,
+        doctorId: values.user,
+        doctorName: users.find(u => u.id === values.user)?.name || user.displayName,
+        startDate: startDateTime,
+        endDate: endDateTime,
+        title: values.title,
+        description: values.description,
+        status: "Scheduled",
+      });
+
+      const newEvent = {
+        id: Math.floor(Math.random() * 10000),
+        startDate: startDateTime.toISOString(),
+        endDate: endDateTime.toISOString(),
+        title: values.title,
+        color: values.color,
+        description: values.description,
+        user: {
+          id: values.user,
+          name: users.find(u => u.id === values.user)?.name || "Unknown",
+          picturePath: null,
+        },
+      };
+
+      setLocalEvents([...events, newEvent]);
+      toast.success("Appointment created successfully");
+      onClose();
+      form.reset();
+      setSelectedPatientId("");
+    } catch (error) {
+      console.error("Error creating appointment:", error);
+      toast.error("Failed to create appointment");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   useEffect(() => {
@@ -61,13 +136,11 @@ export function AddEventDialog({ children, startDate, startTime }: IProps) {
     <Dialog open={isOpen} onOpenChange={onToggle}>
       <DialogTrigger asChild>{children}</DialogTrigger>
 
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add New Event</DialogTitle>
+          <DialogTitle>Schedule New Appointment</DialogTitle>
           <DialogDescription>
-            <AlertTriangle className="mr-1 inline-block size-4 text-yellow-500" />
-            This form is for demonstration purposes only and will not actually create an event. In a real application, submit the form to the backend API to
-            save the event.
+            Create a new appointment with a patient. All fields are required.
           </DialogDescription>
         </DialogHeader>
 
@@ -78,11 +151,11 @@ export function AddEventDialog({ children, startDate, startTime }: IProps) {
               name="user"
               render={({ field, fieldState }) => (
                 <FormItem>
-                  <FormLabel>Responsible</FormLabel>
+                  <FormLabel>Doctor/Provider</FormLabel>
                   <FormControl>
                     <Select value={field.value} onValueChange={field.onChange}>
                       <SelectTrigger data-invalid={fieldState.invalid}>
-                        <SelectValue placeholder="Select an option" />
+                        <SelectValue placeholder="Select doctor" />
                       </SelectTrigger>
 
                       <SelectContent>
@@ -105,6 +178,24 @@ export function AddEventDialog({ children, startDate, startTime }: IProps) {
                 </FormItem>
               )}
             />
+
+            <FormItem>
+              <FormLabel>Patient</FormLabel>
+              <FormControl>
+                <Select value={selectedPatientId} onValueChange={setSelectedPatientId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select patient" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {patients.map(patient => (
+                      <SelectItem key={patient.id} value={patient.id}>
+                        {patient.fullName} ({patient.patientId})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormControl>
+            </FormItem>
 
             <FormField
               control={form.control}
@@ -288,13 +379,13 @@ export function AddEventDialog({ children, startDate, startTime }: IProps) {
 
         <DialogFooter>
           <DialogClose asChild>
-            <Button type="button" variant="outline">
+            <Button type="button" variant="outline" disabled={isSubmitting}>
               Cancel
             </Button>
           </DialogClose>
 
-          <Button form="event-form" type="submit">
-            Create Event
+          <Button form="event-form" type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "Scheduling..." : "Schedule Appointment"}
           </Button>
         </DialogFooter>
       </DialogContent>
