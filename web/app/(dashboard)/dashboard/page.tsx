@@ -213,12 +213,12 @@ export default function DashboardPage() {
                     </div>
                   </div>
                   <Badge variant={
-                    appointment.status === "completed" ? "secondary" :
-                    appointment.status === "in-progress" ? "default" :
-                    "outline"
+                    appointment.status === "Completed" ? "secondary" :
+                    appointment.status === "Scheduled" ? "outline" :
+                    "destructive"
                   }>
-                    {appointment.status === "in-progress" ? "In Progress" :
-                     appointment.status === "completed" ? "Completed" : "Upcoming"}
+                    {appointment.status === "Completed" ? "Completed" :
+                     appointment.status === "Scheduled" ? "Scheduled" : "Cancelled"}
                   </Badge>
                 </div>
               ))
