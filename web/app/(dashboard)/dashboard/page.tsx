@@ -8,12 +8,15 @@ import { Users, FileText, Package, AlertTriangle, TrendingUp, Calendar } from 'l
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { DashboardService } from '@/lib/services/dashboard.service';
 import { InventoryService } from '@/lib/services/inventory.service';
+import { AppointmentService } from '@/lib/services/appointment.service';
 import { useAuth } from '@/lib/hooks/use-auth';
+import { Appointment } from '@/lib/types';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<any>(null);
   const [alerts, setAlerts] = useState<any[]>([]);
   const [weekData, setWeekData] = useState<any[]>([]);
+  const [todayAppointments, setTodayAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
@@ -21,14 +24,16 @@ export default function DashboardPage() {
     const loadData = async () => {
       try {
         setLoading(true);
-        const [dashStats, invAlerts, weekly] = await Promise.all([
+        const [dashStats, invAlerts, weekly, appointments] = await Promise.all([
           DashboardService.getDashboardStats(),
           InventoryService.getLowStockAlerts(),
           DashboardService.getWeeklyPatientData(),
+          AppointmentService.getTodayAppointments(),
         ]);
         setStats(dashStats);
         setAlerts(invAlerts);
         setWeekData(weekly);
+        setTodayAppointments(appointments);
       } catch (error) {
         console.error('Error loading dashboard data:', error);
       } finally {
@@ -189,33 +194,37 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {[
-              { time: "09:00 AM", patient: "John Smith", reason: "Regular Checkup", status: "completed" },
-              { time: "10:30 AM", patient: "Sarah Johnson", reason: "Follow-up Visit", status: "completed" },
-              { time: "11:15 AM", patient: "Michael Brown", reason: "Consultation", status: "in-progress" },
-              { time: "02:00 PM", patient: "Emily Davis", reason: "Vaccination", status: "upcoming" },
-              { time: "03:30 PM", patient: "David Wilson", reason: "Regular Checkup", status: "upcoming" },
-            ].map((appointment, index) => (
-              <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
-                <div className="flex items-center gap-4">
-                  <div className="text-center">
-                    <div className="text-sm text-muted-foreground">{appointment.time}</div>
+            {todayAppointments.length > 0 ? (
+              todayAppointments.map((appointment) => (
+                <div key={appointment.id} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div className="flex items-center gap-4">
+                    <div className="text-center">
+                      <div className="text-sm text-muted-foreground">
+                        {appointment.startDate.toLocaleTimeString('en-US', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          hour12: true
+                        })}
+                      </div>
+                    </div>
+                    <div>
+                      <div>{appointment.patientName}</div>
+                      <div className="text-sm text-muted-foreground">{appointment.title}</div>
+                    </div>
                   </div>
-                  <div>
-                    <div>{appointment.patient}</div>
-                    <div className="text-sm text-muted-foreground">{appointment.reason}</div>
-                  </div>
+                  <Badge variant={
+                    appointment.status === "completed" ? "secondary" :
+                    appointment.status === "in-progress" ? "default" :
+                    "outline"
+                  }>
+                    {appointment.status === "in-progress" ? "In Progress" :
+                     appointment.status === "completed" ? "Completed" : "Upcoming"}
+                  </Badge>
                 </div>
-                <Badge variant={
-                  appointment.status === "completed" ? "secondary" :
-                  appointment.status === "in-progress" ? "default" :
-                  "outline"
-                }>
-                  {appointment.status === "in-progress" ? "In Progress" :
-                   appointment.status === "completed" ? "Completed" : "Upcoming"}
-                </Badge>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="text-muted-foreground text-center py-4">No appointments scheduled for today</p>
+            )}
           </div>
         </CardContent>
       </Card>

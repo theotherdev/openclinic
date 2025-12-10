@@ -232,6 +232,15 @@ export class AppointmentService {
     await deleteDoc(doc(db, this.appointmentCollection, id));
   }
 
+  // Get today's appointments
+  static async getTodayAppointments(): Promise<Appointment[]> {
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0);
+    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
+
+    return this.getAppointmentsByDateRange(startOfDay, endOfDay);
+  }
+
   // Generate unique appointment ID (APT001, APT002, etc.)
   static async generateAppointmentId(): Promise<string> {
     const q = query(

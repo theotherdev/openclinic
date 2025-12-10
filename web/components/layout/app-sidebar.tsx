@@ -14,7 +14,7 @@ import {
   SidebarHeader,
   SidebarFooter
 } from "@/components/ui/sidebar"
-import { LayoutDashboard, Users, FileText, Package, Calendar, Settings, HelpCircle, Activity, Stethoscope } from "lucide-react"
+import { LayoutDashboard, Users, FileText, Package, Calendar, Settings, HelpCircle, Activity, Stethoscope, Database } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 
 const menuItems = [
@@ -68,15 +68,27 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton>
-                  <Settings className="h-4 w-4" />
-                  <span>Settings</span>
+                <SidebarMenuButton asChild isActive={pathname === "/seed-data"}>
+                  <Link href="/seed-data">
+                    <Database className="h-4 w-4" />
+                    <span>Seed Data</span>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton>
-                  <HelpCircle className="h-4 w-4" />
-                  <span>Help & Support</span>
+                <SidebarMenuButton asChild isActive={pathname === "/settings"}>
+                  <Link href="/settings">
+                    <Settings className="h-4 w-4" />
+                    <span>Settings</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={pathname === "/help"}>
+                  <Link href="/help">
+                    <HelpCircle className="h-4 w-4" />
+                    <span>Help & Support</span>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>

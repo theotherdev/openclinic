@@ -41,10 +41,8 @@ export function AppHeader() {
         <div className="flex items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center text-white">
-                  {user?.displayName?.charAt(0) || 'U'}
-                </div>
+              <Button variant="ghost" className="h-8 w-8 rounded-full p-0 bg-blue-600 text-white hover:bg-blue-700">
+                {user?.displayName?.charAt(0) || 'U'}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56" align="end" forceMount>
