@@ -14,7 +14,7 @@ import {
   SidebarHeader,
   SidebarFooter
 } from "@/components/ui/sidebar"
-import { LayoutDashboard, Users, FileText, Package, Settings, HelpCircle, Activity } from "lucide-react"
+import { LayoutDashboard, Users, FileText, Package, Calendar, Settings, HelpCircle, Activity } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 
 const menuItems = [
@@ -22,6 +22,7 @@ const menuItems = [
   { href: "/patients", label: "Patient Management", icon: Users },
   { href: "/prescriptions", label: "Prescriptions", icon: FileText },
   { href: "/inventory", label: "Inventory", icon: Package },
+  { href: "/calendar", label: "Calendar", icon: Calendar },
 ]
 
 export function AppSidebar() {
