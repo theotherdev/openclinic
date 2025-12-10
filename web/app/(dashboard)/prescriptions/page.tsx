@@ -15,20 +15,23 @@ import { Textarea } from '@/components/ui/textarea';
 import { Search, Plus, Eye, FileText, Calendar, User } from 'lucide-react';
 import { PrescriptionService } from '@/lib/services/prescription.service';
 import { PatientService } from '@/lib/services/patient.service';
+import { DoctorService } from '@/lib/services/doctor.service';
 import { InventoryService } from '@/lib/services/inventory.service';
 import { PDFService } from '@/lib/services/pdf.service';
 import { useAuth } from '@/lib/hooks/use-auth';
-import { Prescription, Patient, Medication, Medicine } from '@/lib/types';
+import { Prescription, Patient, Medication, Medicine, User } from '@/lib/types';
 
 export default function PrescriptionsPage() {
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
+  const [doctors, setDoctors] = useState<User[]>([]);
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddPrescriptionOpen, setIsAddPrescriptionOpen] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedPatientId, setSelectedPatientId] = useState('');
+  const [selectedDoctorId, setSelectedDoctorId] = useState('');
   const [formData, setFormData] = useState({
     diagnosis: '',
     instructions: '',
@@ -46,16 +49,17 @@ export default function PrescriptionsPage() {
   const { user } = useAuth();
 
   useEffect(() => {
-    // Load prescriptions, patients, and medicines
+    // Load prescriptions, patients, doctors, and medicines
     const loadAllData = async () => {
       try {
-        const [prescData, patientsData, medicinesData] = await Promise.all([
+        const [prescData, patientsData, doctorsData, medicinesData] = await Promise.all([
           new Promise<Prescription[]>((resolve) => {
             PrescriptionService.getAllPrescriptions((data) => resolve(data));
           }),
           new Promise<Patient[]>((resolve) => {
             PatientService.getAllPatients((data) => resolve(data));
           }),
+          DoctorService.getAllDoctorsAsync(),
           new Promise<Medicine[]>((resolve) => {
             InventoryService.getAllMedicines((data) => resolve(data));
           })
@@ -63,6 +67,7 @@ export default function PrescriptionsPage() {
 
         setPrescriptions(prescData);
         setPatients(patientsData);
+        setDoctors(doctorsData);
         setMedicines(medicinesData);
       } catch (error) {
         console.error('Error loading data:', error);
@@ -135,13 +140,13 @@ export default function PrescriptionsPage() {
   };
 
   const handleCreatePrescription = async () => {
-    if (!user) {
-      toast.error('You must be logged in to create a prescription');
+    if (!selectedPatientId) {
+      toast.error('Please select a patient');
       return;
     }
 
-    if (!selectedPatientId) {
-      toast.error('Please select a patient');
+    if (!selectedDoctorId) {
+      toast.error('Please select a doctor');
       return;
     }
 
@@ -153,8 +158,14 @@ export default function PrescriptionsPage() {
     setIsSubmitting(true);
     try {
       const patient = patients.find(p => p.id === selectedPatientId);
+      const doctor = doctors.find(d => d.id === selectedDoctorId);
+
       if (!patient) {
         throw new Error('Selected patient not found');
+      }
+
+      if (!doctor) {
+        throw new Error('Selected doctor not found');
       }
 
       // Validate stock availability for each medication
@@ -174,8 +185,8 @@ export default function PrescriptionsPage() {
         patientName: patient.fullName,
         patientAge: patient.age,
         patientGender: patient.gender,
-        doctorId: user.id,
-        doctorName: user.displayName,
+        doctorId: doctor.id,
+        doctorName: doctor.displayName,
         date: new Date(),
         diagnosis: formData.diagnosis,
         medications: selectedMedications,
@@ -186,6 +197,7 @@ export default function PrescriptionsPage() {
       // Reset form
       setIsAddPrescriptionOpen(false);
       setSelectedPatientId('');
+      setSelectedDoctorId('');
       setFormData({
         diagnosis: '',
         instructions: '',
@@ -274,11 +286,18 @@ export default function PrescriptionsPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="doctor">Prescribing Doctor</Label>
-                  <Input
-                    id="doctor"
-                    value={user?.displayName || ''}
-                    readOnly
-                  />
+                  <Select value={selectedDoctorId} onValueChange={setSelectedDoctorId}>
+                    <SelectTrigger id="doctor">
+                      <SelectValue placeholder="Select doctor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {doctors.map(doctor => (
+                        <SelectItem key={doctor.id} value={doctor.id}>
+                          {doctor.displayName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
