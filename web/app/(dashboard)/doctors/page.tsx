@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,7 +21,7 @@ export default function DoctorsPage() {
   });
 
   // Load doctors on mount
-  React.useEffect(() => {
+  useEffect(() => {
     const unsubscribe = DoctorService.getAllDoctors((doctorsData) => {
       setDoctors(doctorsData);
       setLoading(false);

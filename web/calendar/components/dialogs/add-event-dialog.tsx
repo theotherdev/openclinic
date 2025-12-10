@@ -53,13 +53,21 @@ export function AddEventDialog({ children, startDate, startTime }: IProps) {
     }
   }, [isOpen]);
 
+  const defaultDate = startDate || new Date();
+  const defaultStartTime = startTime || { hour: 9, minute: 0 };
+  const defaultEndTime = { hour: 10, minute: 0 };
+
   const form = useForm<TEventFormData>({
     resolver: zodResolver(eventSchema),
     defaultValues: {
+      user: "",
       title: "",
       description: "",
-      startDate: typeof startDate !== "undefined" ? startDate : undefined,
-      startTime: typeof startTime !== "undefined" ? startTime : undefined,
+      color: "blue",
+      startDate: defaultDate,
+      startTime: defaultStartTime,
+      endDate: defaultDate,
+      endTime: defaultEndTime,
     },
   });
 
@@ -126,11 +134,19 @@ export function AddEventDialog({ children, startDate, startTime }: IProps) {
   };
 
   useEffect(() => {
-    form.reset({
-      startDate,
-      startTime,
-    });
-  }, [startDate, startTime, form]);
+    if (isOpen) {
+      form.reset({
+        user: "",
+        title: "",
+        description: "",
+        color: "blue",
+        startDate: startDate || new Date(),
+        startTime: startTime || { hour: 9, minute: 0 },
+        endDate: startDate || new Date(),
+        endTime: { hour: 10, minute: 0 },
+      });
+    }
+  }, [startDate, startTime, isOpen, form]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onToggle}>
