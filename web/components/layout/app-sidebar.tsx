@@ -89,7 +89,7 @@ export function AppSidebar() {
       </SidebarContent>
       <SidebarFooter>
         <div className="px-4 py-3 text-xs text-muted-foreground">
-          <p>© 2024 ClinicCare System</p>
+          <p>© {new Date().getFullYear()} ClinicCare System</p>
           <p>Version 1.0.0</p>
         </div>
       </SidebarFooter>

@@ -387,7 +387,7 @@ export default function InventoryPage() {
                       </TableCell>
                       <TableCell>{item.manufacturer}</TableCell>
                       <TableCell>
-                        <div className="space-y-2 min-w-[200px]">
+                        <div className="space-y-2 min-w-[150px]">
                           <div className="flex justify-between items-center">
                             <span className={stockStatus.color}>
                               {item.stock} {item.unit}
