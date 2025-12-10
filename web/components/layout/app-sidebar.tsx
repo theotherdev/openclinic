@@ -14,12 +14,13 @@ import {
   SidebarHeader,
   SidebarFooter
 } from "@/components/ui/sidebar"
-import { LayoutDashboard, Users, FileText, Package, Calendar, Settings, HelpCircle, Activity } from "lucide-react"
+import { LayoutDashboard, Users, FileText, Package, Calendar, Settings, HelpCircle, Activity, Stethoscope } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 
 const menuItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/patients", label: "Patient Management", icon: Users },
+  { href: "/doctors", label: "Doctors", icon: Stethoscope },
   { href: "/prescriptions", label: "Prescriptions", icon: FileText },
   { href: "/inventory", label: "Inventory", icon: Package },
   { href: "/calendar", label: "Calendar", icon: Calendar },
