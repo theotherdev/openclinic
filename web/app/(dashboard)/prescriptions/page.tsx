@@ -19,12 +19,21 @@ import { DoctorService } from '@/lib/services/doctor.service';
 import { InventoryService } from '@/lib/services/inventory.service';
 import { PDFService } from '@/lib/services/pdf.service';
 import { useAuth } from '@/lib/hooks/use-auth';
-import { Prescription, Patient, Medication, Medicine, User } from '@/lib/types';
+import type { Prescription, Patient, Medication, Medicine } from '@/lib/types';
+
+interface Doctor {
+  id: string;
+  email: string;
+  displayName: string;
+  role: 'doctor' | 'admin' | 'staff';
+  createdAt: any;
+  updatedAt: any;
+}
 
 export default function PrescriptionsPage() {
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
-  const [doctors, setDoctors] = useState<User[]>([]);
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
